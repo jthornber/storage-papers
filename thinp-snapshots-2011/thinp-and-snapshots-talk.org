@@ -100,4 +100,8 @@ Mike Snitzer wants some slides on these for a dm talk he's giving.
      #+LABEL:   fig: blah blah
     [[./test-image.svg]]
 
+    #+BEGIN_HTML
+    <iframe src="test-image.svg" width="300" height="300"></iframe>
+    #+END_HTML
+
 * Virtual machines
