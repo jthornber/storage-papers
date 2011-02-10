@@ -89,11 +89,13 @@ Mike Snitzer wants some slides on these for a dm talk he's giving.
 
 ** Existing snapshots
 
-   - Take a writable snapshot of any volume (device mapper or otherwise).
-   - 'snapshot' shows the volume 
+  - Take a writable snapshot of any volume (device mapper or otherwise).
+  - 'snapshot' shows the volume 
 
 ** Sharing
 
+  - Here's a picture
 
+    [[./test-image.svg]]
 
 * Virtual machines
