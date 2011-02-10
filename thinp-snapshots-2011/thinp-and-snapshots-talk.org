@@ -1,0 +1,99 @@
+Mike Snitzer wants some slides on these for a dm talk he's giving.
+
+* Thin provisioning
+
+** Problem description
+
+  - Most volumes have unused space on them.
+  - Unnecessary storage deployment raises costs.
+  - Manual solution  <Describe manual process for reducing wasted space by extending lvs regularly>
+    - Extend logical volume
+    - Get application to extend (eg, filesystem or database).  If the
+      application can't extend 'online' then you'll have to umount the
+      volume for this step and incur a service outage.
+
+** Solution
+
+  - Drop the early provisioning paradigm of allocating all space at
+    device creation time in favour of late provisioning which allocates on
+    demand; this is comparible to virtual memory concepts.
+
+  - Create large virtual devices, but only allocate when the application
+    first writes to a particular area of the volume.
+
+  - Space comes from a preallocated 'pool', which is itself just
+    another logical volume, thus can be resized on demand.
+
+  - Different thin provisioned volumes may _not_ share the same pool.
+    A deliberate decision to keep things simple.  Prompt extension of
+    the pool will allow the excess space in the pool to be kept to a
+    minimum.  (For those still want pool sharing see the multi-snapshot
+    target.)
+
+  - Separate metadata device simplifies extension, this is hidden by
+    the LVM system so sys admin unlikely to be aware of it.
+
+  - Transactional metadata to ensure consistency in case of power
+    failure.
+
+** Block size choice
+
+  - A block is the unit of allocation.
+
+  - The choice of block size can has a couple of trade offs:
+
+    - The smaller the block size, the more potential for saving space.
+      eg, a single byte write to an unallocated block will cause a
+      whole blocks worth of disk to be allocated.
+
+      <can we come up with some examples here?  eg, mkfs with small and large block sizes>
+
+    - The larger the block size:
+      - the less chance there is of fragmentation (describe this)
+      - the less frequently we need the expensive mapping operation
+      - the smaller the metadata tables are, so more of them can be
+        held in core at a time.  Leading to faster access to the provisioned
+	blocks by minimizing reading in mapping information
+
+** Configuration/Use (LVM tools)
+
+  - Allocate (empty) logical volume for the thin provisioning pool
+  - Allocate small logical volume for the thin provisioning metadata
+  - Set up thin provisioning mapped device on aforementioned 2 LVs
+  - Access as usual (mkfs, ...)
+  - In case the pool runs full, lvextend the pool logical volumne
+    accordingly
+  - Reload thin provisioned mapped device in order to inform it
+    about the size change
+
+** Performance
+
+  - Expensive operation is mapping in a new 'area'.  Writing across a
+    totally unprovisioned volume with a small block size (eg, 64k)
+    within a few percentage points of native performance.  Larger
+    block sizes are pretty much at native performance.
+
+  - Once a region has been mapped access occurs at native device speed.
+
+** Current status
+
+  - Experimental device mapper target available.
+
+  - LVM tools should follow shortly, making it easier for people to
+    experiment.
+
+  - Hopefully in mainline kernel within 6 months.
+
+
+* Snapshots
+
+** Existing snapshots
+
+   - Take a writable snapshot of any volume (device mapper or otherwise).
+   - 'snapshot' shows the volume 
+
+** Sharing
+
+
+
+* Virtual machines
