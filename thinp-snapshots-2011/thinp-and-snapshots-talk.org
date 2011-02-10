@@ -96,6 +96,8 @@ Mike Snitzer wants some slides on these for a dm talk he's giving.
 
   - Here's a picture
 
+     #+CAPTION: This is the caption for the next figure link (or table)
+     #+LABEL:   fig: blah blah
     [[./test-image.svg]]
 
 * Virtual machines
