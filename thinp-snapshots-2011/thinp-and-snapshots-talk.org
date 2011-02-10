@@ -1,4 +1,4 @@
-Mike Snitzer wants some slides on these for a dm talk he's giving.
+Thin Provisioning and Multi-Snapshots
 
 * Thin provisioning
 
@@ -98,10 +98,7 @@ Mike Snitzer wants some slides on these for a dm talk he's giving.
 
      #+CAPTION: This is the caption for the next figure link (or table)
      #+LABEL:   fig: blah blah
+     #+ATTR_LaTeX: width=5cm,angle=30
     [[./test-image.svg]]
-
-    #+BEGIN_HTML
-    <iframe src="test-image.svg" width="300" height="300"></iframe>
-    #+END_HTML
 
 * Virtual machines
