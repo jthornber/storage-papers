@@ -90,7 +90,17 @@ Thin Provisioning and Multi-Snapshots
 ** Existing snapshots
 
   - Take a writable snapshot of any volume (device mapper or otherwise).
-  - 'snapshot' shows the volume 
+  - snapshot shows the volume as it was when taken, origin can continue to be used.
+  - 'writable' in that you may write to the snapshot and diverge from the origin.
+  - Works by storing the differences from the origin device.  These
+    differences are stored in a separate LV (backing volume).  Once
+    snapshot per backing volume.
+  - As more differences acrue you may have to resize the backing volume
+  - 
+
+** Problems with existing snapshots
+
+** 
 
 ** Sharing
 
