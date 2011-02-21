@@ -96,11 +96,169 @@ Thin Provisioning and Multi-Snapshots
     differences are stored in a separate LV (backing volume).  Once
     snapshot per backing volume.
   - As more differences acrue you may have to resize the backing volume
-  - 
+  - The 'merge' operation allows you to discard any subsequent changes
+    to the origin and instead use copy the snapshot contents back over
+    the origin.  This can be done on a live system.
 
 ** Problems with existing snapshots
 
-** 
+** Multisnaps
+
+   describe frequent, regular snaps with dropping of
+   intermediate snaps scenario.
+
+** Metadata object
+
+   Once we start sharing metadata between various thinly provisioned
+   devices we end up with a separate 'object' in the kernel that needs
+   several operations:
+
+*** create/delete virtual device
+
+    We intend to store large numbers of virtual devices in a single
+    metadata area.  These devices will be created and deleted
+    frequently.  We don't want to have to load a dm table for a
+    virtual device in order to delete it.  So we communicate directly
+    with the metadata object to do this.
+
+*** New virtual device (possibly a snapshot)
+
+    Similarly we may want to take a snapshot of an existing device
+    without creating a dm device for the origin.  The origin can be
+    an external device (ie. outside the metadata area), internal or
+    non-existant (thinp).
+
+*** set external transaction id
+
+    Userland volume managers (ie. LVM) will use a transactional model
+    for storing their metadata.  The 'external transaction id' allows
+    a sort of two phase commit to occur, where the userland updates
+    it's own metadata, then updates the metadata device and finally
+    updates it's own metadata.  This allows userland to recover from
+    crashes.
+
+*** hold/drop transaction
+
+    Some features will be provided by userland, either because
+    they're too computationally expensive to put in the kernel, or
+    just for separation of policy from implementation.
+
+    Here are a couple of examples:
+
+    - How much space will I recover if I delete a particular device?
+
+     We're putting many devices into one pool in order to maximise
+     sharing between devices.  So while a device may have 1000 mapped
+     blocks, 999 of them may be shared by other devices, in which case
+     deleting the device is only going to recover one block.
+
+     Looking at the reference counts for each mapped block involves
+     walking the whole metadata tree for the device.  With large
+     devices this can take a lot of IO, so something best kept out of
+     the kernel.
+
+     Keeping track of this count for each device would involve an
+     inverse mapping from blocks to devices, and would be very
+     expensive when sharing was broken.  Thus ruining performance.
+
+    - Snapshot merge
+
+     Merging a set of snapshot changes back into an external origin
+     also requires a complete walk of the metadata tree to discover the
+     changes and schedule them to be made by a kernel deamon (kcopyd).
+
+     The walking and scheduling aspect will be performed by a userland
+     utility.
+
+
+    So both the above scenarios require userland to be performing
+    _read only_ operations on the metadata at the same time as the
+    kernel is working on the metadata.
+
+    Fine grain locking to coordinate userland/kernel access and
+    updates to the metadata would be too expensive to the performance
+    of dm targets.  So instead there will an pair of operations that
+    take a read only clone (I'm avoiding the work snapshot here) of
+    the current metadata tree.  The same sharing mechanisms that make
+    shared snapshots efficient will hopefully make this inexpensive.
+
+    Userland will be given the location of an alternative superblock
+    for the metadata device.  This is the root of a tree of blocks
+    referring to other blocks in a variety of data structures (btrees,
+    space maps etc.).  Blocks will be shared with the 'live' version
+    of the metadata, their reference counts may change as sharing is
+    broken, but we know the blocks will never be updated.
+
+    Of course userland only has a view of the metadata at a fixed
+    point in time.  In some cases this is adequate, for example the
+    'how much space will be release if I delete this device' scenario.
+    The block count returned by this may be slightly out of date.  But
+    this is no worse a race than, say, using 'ps' to find out the
+    memory usage of a process.
+
+    For snapshot merge there are two scenarios.
+
+    i) The merge should reflect the state of the snapshot at the
+       current time.  A 'static' update.
+
+    ii) The merge should include on going updates to the snapshot.  A
+       'live' update.  This will involve switching a device over from
+       pointing at the snapshot to pointing to the updated origin.
+
+    For 'live' snapshot merging the userland process will need to iterate
+    round taking successive views of the metadata.  Hopefully there
+    will be fewer changes to merge in successive iterations.  At some
+    point the changes will be deemed small enough that the snapshot
+    can be suspended, the dm table reloaded to point to the origin and
+    the few changes made before resuming.
+
+*** Kernel interface to metadata object
+
+    How do we talk to the metadata object in the kernel?
+
+    i) Write a totally new kernel interface/system call.  (No one seriously considering this).
+    ii) Widen the dm-ioctl interface.
+    iii) Use the dm facility that allows us to send text strings to specific targets.
+    iv) sysfs or whatever fs interface is flavour of the month.
+
+   Going for (iii) since we often need to introduce a wrapper dm device
+   around the data store anyway.
+
+*** dm targets
+
+**** 'pool'
+
+     This target ties together a shared metadata volume and a shared
+     data volume.  IO is mapped linearly to the data volume.  It
+     accepts dm 'messages' from userland to implement the operations
+     described in previous sections (delete device etc.).
+
+     pool <metadata volume> <data volume> <low water mark>
+
+     If the first 4k of the metadata volume has been zeroed then an
+     empty metadata device will be created.
+
+     The 'low water mark' is an edge trigerred value.  When the free
+     space in the data volume crosses it, dmeventd will be notified.
+     It will check the status line for the pool and take the
+     appropriate action (ie. extend the data device).
+
+     FIXME: add detail about the messages
+
+**** 'thin'
+
+     All devices stored within a metadata object are instanced with
+     this target.  Be they fully mapped devices, thin provisioned
+     devices, internal snapshots or external snapshots.
+
+     The target line:
+
+     thin <pool object> <internal device id>
+
+     The 'internal device id' is just a 64bit number.  It must
+     correspond to the id used in the 'create virtual device' message
+     to the pool.  If the device id is not present in the metadata
+     area the target constructor will fail.
 
 ** Sharing
 
@@ -112,3 +270,7 @@ Thin Provisioning and Multi-Snapshots
     [[./test-image.svg]]
 
 * Virtual machines
+
+
+
+
