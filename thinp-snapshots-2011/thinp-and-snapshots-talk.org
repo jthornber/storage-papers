@@ -395,8 +395,8 @@ space between different instances of the target.
 **** 'thin'
 
      All devices stored within a metadata object are instanced with
-     this target.  Be they fully mapped devices, thin provisioned
-     devices, internal snapshots or external snapshots.
+     this target.  Be they thin provisioned devices, internal
+     snapshots or external snapshots.
 
      The target line:
 
