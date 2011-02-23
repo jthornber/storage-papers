@@ -108,6 +108,28 @@ space between different instances of the target.
         incur a disk read to load it.  (For this simple thinp target
         the whole table commonly fits in core.)
 
+** Reading an unprovisioned block
+
+  Sometimes an application will try and read an unprovisioned block.
+  For example udev hunting for a disk label.  There are several ways
+  to address this:
+
+  i) Map the block, which potentially wastes space.
+
+  ii) Return zeroes, until the block is mapped and then return
+  whatever is on the mapped block.
+
+  iii) Return zeroes, keep track of which blocks have returned zeroes
+  in this way and actually zero these blocks when they are mapped.
+  Adds metadata overhead and adds a lot of latency to the mapping
+  operation.
+
+  iv) Error the IO.  Antisocial.
+
+  We've decided to go with option (ii), it gives the best performance
+  and there is a precident with other hardware devices behaving
+  similarly.
+
 ** Configuration/Use
 
   - Allocate (empty) logical volume for the thin provisioning pool
