@@ -152,7 +152,7 @@ space between different instances of the target.
   - Set up thin provisioning mapped device on aforementioned 2 LVs
   - Access as usual (mkfs, ...)
   - In case the data volume runs out of space, lvextend the pool
-    logical volumne accordingly.
+    logical volume accordingly.
   - Reload thin provisioned mapped device in order to inform it
     about the size change.
 
