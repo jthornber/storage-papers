@@ -108,7 +108,7 @@ space between different instances of the target.
         incur a disk read to load it.  (For this simple thinp target
         the whole table commonly fits in core.)
 
-** Configuration/Use (LVM tools)
+** Configuration/Use
 
   - Allocate (empty) logical volume for the thin provisioning pool
   - Allocate small logical volume for the thin provisioning metadata
@@ -119,14 +119,16 @@ space between different instances of the target.
   - Reload thin provisioned mapped device in order to inform it
     about the size change
 
+  LVM2 tools take care of all this for you.
+
 ** Performance
 
-  - Expensive operation is mapping in a new 'area'.  Writing across a
+  - Expensive operation is mapping in a new 'block'.  Writing across a
     totally unprovisioned volume with a small block size (eg, 64k)
     within a few percentage points of native performance.  Larger
     block sizes are pretty much at native performance.
 
-  - Once a region has been mapped access occurs at native device speed.
+  - Once a block has been mapped access occurs at native device speed.
 
 ** Current status
 
