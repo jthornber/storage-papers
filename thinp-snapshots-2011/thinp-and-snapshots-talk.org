@@ -101,10 +101,12 @@ space between different instances of the target.
       - The less frequently we need to allocate new mappings, and
         update the metadata.
 
-      - The smaller the metadata tables are, so more of them can be
-        held in core at a time.  Leading to faster access to the
-        provisioned blocks by minimizing reading in mapping
-        information.
+      - The smaller the metadata tables.  The target preallocates a
+        fixed amount of memory for storing mapping details.  A subset
+        of the mapping table is held in core at any one time.  An IO
+        that requires a mapping that isn't in the in core table will
+        incur a disk read to load it.  (For this simple thinp target
+        the whole table commonly fits in core.)
 
 ** Configuration/Use (LVM tools)
 
