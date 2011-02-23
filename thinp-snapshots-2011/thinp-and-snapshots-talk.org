@@ -196,16 +196,69 @@ space between different instances of the target.
 
 ** Problems with existing snapshots
 
+  - If you take multiple snapshots of the same origin, you can end up
+    copying the same delta to many different snapshot volumes.  This
+    impacts performance and wastes a lot of space.  This is a common
+    usage scenario.
+
+  - Sys admins would like to manage the free space allocated to
+    snapshots more easily. ie. in one central pool.
+
+  - Recursive snapshots are difficult to administer and perform badly.
+    Snapshots of snapshots of snapshots.
+
 ** Multisnaps
 
-   describe frequent, regular snaps with dropping of
-   intermediate snaps scenario.
+  This target uses the same metadata structure to support three
+  different types of device:
+
+  - thin provisioned devices
+  - writeable snapshots of a _read-only_ external origin
+  - writeable snapshots of a rw internal origin
+
+  An internal origin is a device whose data is entirely held within
+  the same multisnap data device.  ie. a thinly provisioned device or
+  a snapshot.  An external origin can be any device.
+
+  The restriction on external origins being read-only is unfortunate.
+  However, it's adequate for most people when you consider that they
+  can use a writeable snapshot of the origin.  Hopefully with more
+  work we can remove this restriction.
+
+** Time complexity of some basic operations
+
+   Time complexity:
+
+   - Taking a snapshot of an external origin O(1).
+   - Taking a snapshot of an internal origin O(1).
+   - writing to an unmapped snapshot block O(ln(nr mapped blocks))
+   - writing to an internal origin O(ln(nr mapped blocks).  Note this
+     is not in any way dependent on the number of snapshots of the
+     origin.
+   - merging a snapshot back into an internal origin O(1) (really a rename).
+   - merging a snapshot back to an external origin.  Expensive userland operation.
+
+** Data sharing
+
+   Data blocks, and metadata blocks for that matter, are shared.  This
+   sharing is based on the write history of the blocks.  For instance
+   if you take a snapshot of an internal origin then there will be
+   100% sharing.  The new snapshot will consume a tiny amount of disk
+   space (4-8k).  Any subsequent write to either the internal origin,
+   or the snapshot will break sharing for the block in being written to.
+
+   Sharing is _not_ based on the contents of the block.  A write of
+   identical data will still break sharing.  This does not do data
+   de-duplication, and is unlikely to ever do so.
 
 ** Metadata object
 
-   Once we start sharing metadata between various thinly provisioned
-   devices we end up with a separate 'object' in the kernel that needs
-   several operations:
+   Different dm targets will use the same metadata and data devices at
+   the same time.  Rather than having them each open the metadata
+   device, and synchronise updates, there is a single kernel object
+   that is shared between all the targets.  Userland tools need to
+   communicate with this metadata object to perform a variety of
+   operations.
 
 *** create/delete virtual device
 
@@ -215,7 +268,7 @@ space between different instances of the target.
     virtual device in order to delete it.  So we communicate directly
     with the metadata object to do this.
 
-*** New virtual device (possibly a snapshot)
+*** take snapshot
 
     Similarly we may want to take a snapshot of an existing device
     without creating a dm device for the origin.  The origin can be
