@@ -147,7 +147,7 @@ space between different instances of the target.
 
 ** Configuration/Use (dmsetup)
 
-  - Allocate (empty) logical volume for the thin provisioning pool.
+  - Allocate (possibly empty) logical volume for the thin provisioning pool.
   - Allocate small logical volume for the thin provisioning metadata.
   - Set up thin provisioning mapped device on aforementioned 2 LVs
   - Access as usual (mkfs, ...)
