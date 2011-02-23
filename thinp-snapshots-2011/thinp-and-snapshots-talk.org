@@ -34,6 +34,40 @@ space between different instances of the target.
   - Create large virtual devices, but only allocate when the application
     first writes to a particular area of the volume.
 
+** Metadata
+
+  - Since we allocate on demand, the mapping from logical blocks on
+    the thinp device to the underlying backing store will not be a
+    simple one.  It reflects the order that blocks were first written
+    to.
+
+  - Currently all metadata is stored by the user space volume manager
+    (eg, LVM) and passed in via the dm-target contructor arguments.
+    This solution is not suitable for thinp for a couple of reasons:
+
+     i) There are a large number of mappings, potentially millions,
+        which is just too much to pass on a target line.
+
+     ii) In order to maintain good performance the target itself must
+         allocate new mappings when needed.  This allocation decision
+         must be robust and survive power failure etc.  So the target
+         writes it's own metadata.
+
+    Side note: The LVM2 metadata format, begin text based, does not
+    scale nicely to such large mappings.  So a userland based metadata
+    management would involve a profound change to the LVM2 metadata.
+
+** Separate metadata and data volumes
+
+  - It's slightly simpler if we put the metadata and data on different
+    volumes.  For example, adding data space is easier.  We can have
+    different block sizes for the data and metadata.
+
+  - Metadata device hidden by LVM system so sys admin unlikely to be
+    aware of it.
+
+** Data volume
+
   - Space comes from a preallocated 'pool', which is itself just
     another logical volume, thus can be resized on demand.
 
@@ -42,12 +76,6 @@ space between different instances of the target.
     the pool will allow the excess space in the pool to be kept to a
     minimum.  (For those still want pool sharing see the multi-snapshot
     target.)
-
-  - Separate metadata device simplifies extension, this is hidden by
-    the LVM system so sys admin unlikely to be aware of it.
-
-  - Transactional metadata to ensure consistency in case of power
-    failure.
 
 ** Block size choice
 
