@@ -68,8 +68,12 @@ space between different instances of the target.
 
 ** Data volume
 
-  - Space comes from a preallocated 'pool', which is itself just
-    another logical volume, thus can be resized on demand.
+  - Space comes from a preallocated 'data volume', which is itself just
+    another dm device.
+
+  - Typically the data volume will only contain enough excess space
+    for a few new mappings.  Userland can extend the data volume if
+    the free space gets too low.
 
   - Different thin provisioned volumes may _not_ share the same pool.
     A deliberate decision to keep things simple.  Prompt extension of
@@ -90,7 +94,9 @@ space between different instances of the target.
       <can we come up with some examples here?  eg, mkfs with small and large block sizes>
 
     - The larger the block size:
-      - the less chance there is of fragmentation (describe this)
+      - The less chance there is of fragmentation.  Where logically
+        adjacent data ends up physically separated on the disk, thus
+        incurring extra seek overhead.
       - the less frequently we need the expensive mapping operation
       - the smaller the metadata tables are, so more of them can be
         held in core at a time.  Leading to faster access to the provisioned
