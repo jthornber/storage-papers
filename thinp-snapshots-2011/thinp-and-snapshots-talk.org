@@ -97,10 +97,14 @@ space between different instances of the target.
       - The less chance there is of fragmentation.  Where logically
         adjacent data ends up physically separated on the disk, thus
         incurring extra seek overhead.
-      - the less frequently we need the expensive mapping operation
-      - the smaller the metadata tables are, so more of them can be
-        held in core at a time.  Leading to faster access to the provisioned
-	blocks by minimizing reading in mapping information
+
+      - The less frequently we need to allocate new mappings, and
+        update the metadata.
+
+      - The smaller the metadata tables are, so more of them can be
+        held in core at a time.  Leading to faster access to the
+        provisioned blocks by minimizing reading in mapping
+        information.
 
 ** Configuration/Use (LVM tools)
 
