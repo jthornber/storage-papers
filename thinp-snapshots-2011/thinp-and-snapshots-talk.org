@@ -1,4 +1,17 @@
-Thin Provisioning and Multi-Snapshots
+* Introduction
+
+Two new device-mapper targets are in development.  The first provides
+thin provisioning at a large level of granularity (eg, several
+megabytes of storage are provisioned at a time).  This target does not
+allow sharing between thin-provisioned targets of the 'pool' of free
+space.  This is a pragmatic solution, it is good enough for many
+people's requirements, and simple to implement.
+
+The second target is currently going by the name of 'multisnap'.  It
+provides thin provisioning _and_ snapshot facilities.  It allows people
+to use small granularity of space allocation, and share data and free
+space between different instances of the target.
+
 
 * Thin provisioning
 
