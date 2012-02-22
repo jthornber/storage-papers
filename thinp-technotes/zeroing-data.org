@@ -31,15 +31,7 @@
 
   The ERASE requirement is more difficult.  Zeroing data blocks when
   they are deallocated (ie. their ref count drops to zero) sounds like
-  a good approach, but this introduces certain difficulties:
-
-  - Reference counts are stored for the data blocks.  These reference
-    counts only take into account immediate references.  A data block
-    may have a reference count of 1, but that one reference may come
-    from a btree node that itself is present in many trees.
-    Calculating the implicit reference count is an expensive
-    operation - not one that we wish to do every time a data block is
-    removed from a tree.
+  a good approach, but this introduces certain difficulties, mainly:
 
   - To retain our crash recovery properties, the zeroing cannot occur
     until after the next commit.  Extra on disk metadata would need to
