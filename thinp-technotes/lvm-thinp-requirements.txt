@@ -1,0 +1,184 @@
+LVM Requirements
+----------------
+
+As an administrator I want to be able to ...
+
+- Create a pool of disk space from which thinly provisioned volumes
+  are automatically allocated.
+
+  - the data volume can contain space allocated from _any_ PV or LV.
+
+  - the metadata volume can contain space allocated from _any_ PV or LV (eg, mirrored)
+
+  - I expect LVM to provide useful defaults for the thinp, for a given
+    focus (eg, thinp+desktop, snaps+enterprise).
+
+    - metadata area size (be generous)
+    - block size (~512k for snappy, ~4M for thin)
+    - discard settings (off by default)
+    - block zeroing (off for desktop, on for enterprise/secure)
+
+  - LVM must allow me to tweak the above settings *when* creating a pool.
+
+  - LVM must allow me to tweak the above settings *after* creating a pool.
+
+  - LVM must be aware of any restrictions on the above parameters and
+    provide helpful error messages and guidance.
+
+
+- ... create thin volumes ...
+
+   - Create a thin volume from a pool with a short command.
+
+   - Create a new thin volume by taking a snapshot of an existing thin
+     volume (which may itself be a snapshot).
+
+   - Support large numbers of snapshots/thins (eg, 1000+, obviously
+     not all active at once).
+
+- ... resize a thin volume ...
+
+   - Extend a thin volume.
+
+   - Reduce a thin volume.
+
+
+- ... modify a thin volume ...
+
+   - Rename a thin volume.
+
+
+- ... delete a thin volume ...
+
+  - delete a specific thin volume
+
+  - delete a set of thin volumes. (eg, descendants of a thin, all
+    thins created in a time range etc).
+
+- ... report on thin volumes ...
+
+   - For each thin volume we need to know:
+
+     - volume name
+     - volume size
+     - how created (ie. new, or snap.  If snap what of and when taken).
+     - when a snap is deleted any child snaps should have their origin
+       changed to their grandparent. (this is just a reporting
+       feature, v. useful for admin).
+
+     - be able to view subsets of thin volumes easily.  eg, select by
+       date, or ancestor.  [If we want people to use many of these
+       then we need to provide them with the tools to manage them].
+
+     - Graph view of snaps.
+
+- Decide to use a snapshot volume (internal) in place of it's origin.
+  Removing the origin should be optional.  (this is the trivial
+  snapshot merge scenario).
+
+
+- ... Create a new thin volume that is an external snapshot of an existing
+  LV (any type) ...
+
+  - LVM should make the original LV read only, and create two external
+    snaps.  The first becomes visible as the origin, the second as the
+    newly created snap.
+
+  - The association between snap and external origin must be persistent.
+
+  - Support further snapshots of external snaps.
+
+  - Provide a way of reverting back to a plain external origin with no
+    snaps.  External origin exactly the same as at the time of
+    snapping.
+
+  - Provide a way of reverting back to a plain external origin with no
+    snaps.  External origin includes changes from a specified snap.
+
+
+- Manually extend a pool's data device, again allocating from PVs or
+  LVs of my choice.  This should work regardless of whether the pool
+  is active or not.
+
+- ... setup auto resizing of pool data volumes ...
+
+  - Automatically extend a pool's data device in response to it's use
+    passing a threshold (data-low-watermark).
+
+  - Configure the data-low-watermark.
+
+  - Configure how much space is added when the data-low-watermark is passed.
+
+  - Configure which PVs and LVs the space is allocated from.
+
+  - disable auto resizing
+
+
+- Manually extend a pool's metadata device, allocating from PVs or LVs
+  of my choice.  This should work regardless of whether the pool
+  is active or not.
+
+- ... setup auto resizing of pool metadata volumes ...
+
+  - Automatically extend a pool's metadata device when the kernel
+    thinks it's running low on space.
+
+  - Configure which PVs and LVs the space is allocated from.
+
+  - disable auto resizing
+
+
+- Set a pool to read-only-metadata mode.  This allows writes to the
+  thins so long as they don't access unprovisioned areas.
+
+
+- ... automate recovery in the case of damaged pool metadata ...
+
+  - Any thin volumes that have been recovered but have potentially
+    lost blocks should be marked as such.
+
+  - Any completely lost thin volumes should be recreated empty, but
+    marked as damaged.
+
+  - damaged thins should report how much space was allocated at the
+    time of recovery.
+
+  - The admin should be able to delete all damaged thins with a simple
+    command line.
+
+- ... automatically check the metadata for a pool ...
+
+  - this should be optional
+
+  - if configured it should run as part of deactivation of the pool,
+    or before activation but after a crash.
+
+- / on a thin LV
+
+- /boot on a thin LV
+
+- ... handle failure gracefully ...
+
+  - If the pool runs out of space and hits read-only mode; then we
+    should be able to recover.  (ie. by resizing the metadata/data,
+    and bringing the pool back up in write mode).
+
+  - ... If a component of the pool fails (ie. PV/LV) ...
+
+    - we should be able to activate the pool and any thin volumes
+      that are not provisioned on these failed PV/LVs.
+
+    - we should be able to activate thins that *do* have allocations
+      on the failed PV/LVs at the admins request.  This will mark the
+      thins as damaged.
+
+- Migrate a pool to another volume group.  (not live, eg, moving disks).
+
+
+
+Other requirements
+------------------
+
+- Anaconda support to create thinp root dev
+- Dracut support to create a bootable initramfs
+- Grub2 support to be able to boot off thinp mappings (mind BIOS/EFI/... constraints)
