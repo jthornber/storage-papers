@@ -87,7 +87,10 @@ As an administrator I want to be able to ...
 
      - Graph view of snaps.
 
-     - damaged status.
+     - damaged status, including which segments are
+       missing/accessible.
+
+     - 'hidden' state.
 
 - ... report on pools ...
 
