@@ -33,8 +33,15 @@ As an administrator I want to be able to ...
    - Create a new thin volume by taking a snapshot of an existing thin
      volume (which may itself be a snapshot).
 
+   - Snapshots should not be activated unless explicitly requested.
+
    - Support large numbers of snapshots/thins (eg, 1000+, obviously
      not all active at once).
+
+   - the creation time of a thin volume should be recorded.
+
+   - the 'divergence time' for a snapshot should be recorded.  Initially
+     this is the same as the creation time.
 
 - ... resize a thin volume ...
 
@@ -47,6 +54,10 @@ As an administrator I want to be able to ...
 
    - Rename a thin volume.
 
+   - (un)tag a thin volume
+
+   - r/o a thin volume
+
 
 - ... delete a thin volume ...
 
@@ -55,6 +66,13 @@ As an administrator I want to be able to ...
   - delete a set of thin volumes. (eg, descendants of a thin, all
     thins created in a time range etc).
 
+  - when a snap is deleted any child snaps should have their origin
+    changed to their grandparent. (this is just a reporting feature,
+    v. useful for admin). And their divergence time to that of the
+    parent (ie. the just deleted snap).  Creation time remains the
+    same.
+
+
 - ... report on thin volumes ...
 
    - For each thin volume we need to know:
@@ -62,15 +80,21 @@ As an administrator I want to be able to ...
      - volume name
      - volume size
      - how created (ie. new, or snap.  If snap what of and when taken).
-     - when a snap is deleted any child snaps should have their origin
-       changed to their grandparent. (this is just a reporting
-       feature, v. useful for admin).
 
      - be able to view subsets of thin volumes easily.  eg, select by
        date, or ancestor.  [If we want people to use many of these
        then we need to provide them with the tools to manage them].
 
      - Graph view of snaps.
+
+     - damaged status.
+
+- ... report on pools ...
+
+  - on thin pool data state
+  - on thin pool metadata state
+  - thin volume state
+  - resizing state
 
 - Decide to use a snapshot volume (internal) in place of it's origin.
   Removing the origin should be optional.  (this is the trivial
@@ -80,9 +104,7 @@ As an administrator I want to be able to ...
 - ... Create a new thin volume that is an external snapshot of an existing
   LV (any type) ...
 
-  - LVM should make the original LV read only, and create two external
-    snaps.  The first becomes visible as the origin, the second as the
-    newly created snap.
+  - The origin should remain writeable, as should the new snap.
 
   - The association between snap and external origin must be persistent.
 
@@ -172,7 +194,8 @@ As an administrator I want to be able to ...
       on the failed PV/LVs at the admins request.  This will mark the
       thins as damaged.
 
-- Migrate a pool to another volume group.  (not live, eg, moving disks).
+- Migrate a pool to another volume group.  (not live, eg, moving disks
+  or changing admin groups).
 
 
 
