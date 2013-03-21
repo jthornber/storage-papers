@@ -90,14 +90,18 @@ As an administrator I want to be able to ...
      - damaged status, including which segments are
        missing/accessible.
 
-     - 'hidden' state.
+     - 'hidden' state (I'm not convinced this is a high level req).
+
+     - wr permissions
+
+     - zeroing enabled
 
 - ... report on pools ...
 
   - on thin pool data state
   - on thin pool metadata state
   - thin volume state
-  - resizing state
+  - resizing state (ie. automatically, threshold, alloc policy/source)
 
 - Decide to use a snapshot volume (internal) in place of it's origin.
   Removing the origin should be optional.  (this is the trivial
