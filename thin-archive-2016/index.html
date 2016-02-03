@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Title</title>
+    <meta charset="utf-8">
+    <style>
+      @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
+      @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
+      @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
+
+      body { font-family: 'Droid Serif'; }
+      h1, h2, h3 {
+      font-family: 'Yanone Kaffeesatz';
+      font-weight: normal;
+      }
+      .remark-code, .remark-inline-code { font-family: 'Ubuntu Mono'; }
+    </style>
+  </head>
+  <body>
+    <textarea id="source">
+
+class: center, middle
+# thin_archive
+
+---
+
+# Agenda
+
+1. High level architecture
+1. Use cases
+2. Dedup discussion
+
+---
+
+# Introduction
+
+  - Backup/restore tool
+  - Works with any block device
+  - Additional features if using thin
+    - Backup of live thin volumes
+    - Restore to live pool
+	- Incremental backups via snapshot deltas
+
+---
+
+class: center, middle
+# High level architecture
+
+    +--------------------------------------+
+    | front end <-> transport <-> back end |
+	+--------------------------------------+
+
+---
+
+## Front end (thin_archive)
+
+- Command line interface
+- dm-thin knowledge (eg, parsing metadata, taking metadata snaps)
+- Splitting stream into chunks, and fingerprinting
+
+---
+
+## Transport
+
+- Decouples the backend.  Allowing various scenarios:
+
+  - Backend within the same process as thin_archive.
+  - Backend in separate process
+  - Backend on separate machine
+
+- zero_mq based.
+- Message protocol defined with [XDR](https://www.rfc-editor.org/rfc/rfc1832.txt).
+  (XDR to C++ compiler written [here](https://github.com/jthornber/xdrgen)).
+
+---
+
+## Backend (cruncher)
+
+- Data deduplication
+- Compression
+- Shared data (explicitly rather implicit via dedup)
+- Zeroes
+
+---
+
+class: center, middle
+# Use cases
+
+---
+
+# Backup a block device
+
+    thin_archive --archive --backend  <backend> --stream-id <uuid>
+                 --block-dev <dev>
+
+---
+
+# Restore to a block device
+
+    thin_archive --restore --backend  <backend> --stream-id <uuid>
+                 --block-dev <dev>
+
+---
+
+# Backup a thin device on a live pool
+
+    thin_archive --archive --backend <backend> --stream-id <uuid>
+                 --thin-pool <pool-dev> --thin-id <thin-id>
+
+- Take snapshot of thin device
+- Take metadata snap of pool
+- Archive the snap
+- Drop metadata snap
+- Drop thin snap
+
+---
+
+# Restore a thin device on a live pool
+
+    thin_archive --restore --backend <backend> --stream-id <uuid>
+                 --thin-pool <pool-dev>
+
+- Create a new thin (noting the thin-id)
+- Query backend to find out stream size
+- Force a complete provision
+- Take metadata snap
+- Restore from backend
+- Drop metadata snap
+- Print new thin id
+
+---
+
+# Incremental backup, live pool
+
+    thin_archive --archive --backend <backend> --stream-id <uuid>
+                 --thin-pool <pool-dev>
+	             --deltas-relative-to <parent-thin-id>
+				 --thin-id <thin-id>
+
+- Take snaps of thin and parent
+- Take metadata snap
+- Archive deltas
+- Drop metadata snap
+- Drop temp snaps
+
+---
+
+# Restore from incremental backup, live pool
+
+    thin_archive --restore --backend <backend> --stream-id <uuid>
+                 --thin-pool <pool-dev>
+	             --deltas-relative-to <parent-thin-id>
+
+- Take snap of parent (remember thin-id)
+- Query backend for delta locations
+- Force breaking of sharing in these locations
+- Take metadata snap
+- Restore deltas
+- Drop metadata snap
+- Print new thin-id
+
+*Obviously the parent thin must not have changed since the backup was made.*
+
+---
+
+class: center, middle
+# Dedup
+
+---
+
+# Naive architecture
+
+    Data stream =>
+    break into chunks =>
+    fingerprint =>
+    lookup fingerprint =>
+	store data iff new fingerprint =>
+    record fingerprint in stream description
+
+Problems with scaling.
+
+---
+
+# Chunking
+
+Investigated with thin_show_duplicates tool.
+
+- Fixed sized chunks work very poorly in general.
+- Performance of fixed sized chunks v. sensitive to fs used
+- Content based chunking works v. well (rolling hash)
+- Chunk size typically between 2k and 8k.  _Many_ fingerprints to be tracked.
+
+---
+
+# Fingerprint
+
+- We can't afford to compare data, so the fingerprints have to be large
+enough to reduce the risk of false positives to effectively zero (way
+below prob of hardware fault).
+
+- Using SHA1 (20 bytes) atm.
+
+- A lot of storage needed to store fingerprints.  eg, 4T of streamed
+data could need 8G of fingerprints.  Too large to keep all in memory.
+We want to store a lot more than 4T.
+
+---
+
+# Lookup fingerprint (problems)
+
+- We can't store all fingerprints in memory.
+- We can't store them in a btree (no locality, fingerprints are random)
+  This is why dm-dedup is flawed.
+
+---
+
+# Lookup fingerprint (solutions)
+
+- Optimise for the common case.  ie. the fingerprint being looked up
+  has _not_ been seen before.  (eg, use a bloom filter, maintaining the
+  bloom filter has own issues).
+
+- Store fingerprints on disk in _stream_ order.  Assumes there will be
+  locality.  If a fingerprint was hit on the previous lookup, check
+  the next chunk against the next index entry before doing the general
+  lookup.
+
+- Page in 'segments' of indexes + compressed data.  Use a smaller
+  lookup that goes from a small hash of the fingerprint to segment.
+  Maintain a cache of loaded segments (LRU).
+
+- Solutions that miss a small percentage of duplicates are acceptable.
+
+---
+
+# Store chunks
+
+Data and fingerprints are packed into 'segments' of around 4-8M.
+These semgents are stream specific; each client to the backend will
+have it's own stream of segments open.
+
+    +--------------------------------+
+    | fingerprints | compressed data |
+    +--------------------------------+
+
+- See if compressed data will fit, if not close segment and allocate a new one.
+- Append fingerprint to finger print area.
+- Append data to data area.
+
+---
+
+# Store index
+
+- Append to journal for the stream.
+
+---
+
+# Open problems
+
+- Deleting streams from the backend.
+
+---
+
+class: center, middle
+# Questions
+
+    </textarea>
+    <script src="https://gnab.github.io/remark/downloads/remark-latest.min.js">
+    </script>
+    <script>
+      var slideshow = remark.create();
+    </script>
+  </body>
+  </html>
