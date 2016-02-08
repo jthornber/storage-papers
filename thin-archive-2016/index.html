@@ -26,9 +26,9 @@ class: center, middle
 
 # Agenda
 
-1. High level architecture
-1. Use cases
-2. Dedup discussion
+- High level architecture
+- Use cases
+- Data Deduplication discussion
 
 ---
 
@@ -79,7 +79,7 @@ class: center, middle
 - Data deduplication
 - Compression
 - Shared data (explicitly rather implicit via dedup)
-- Zeroes
+- Zeroes, Unmapped regions
 
 ---
 
@@ -88,21 +88,21 @@ class: center, middle
 
 ---
 
-# Backup a block device
+## Backup a block device
 
     thin_archive --archive --backend  <backend> --stream-id <uuid>
                  --block-dev <dev>
 
 ---
 
-# Restore to a block device
+## Restore to a block device
 
     thin_archive --restore --backend  <backend> --stream-id <uuid>
                  --block-dev <dev>
 
 ---
 
-# Backup a thin device on a live pool
+## Backup a thin device on a live pool
 
     thin_archive --archive --backend <backend> --stream-id <uuid>
                  --thin-pool <pool-dev> --thin-id <thin-id>
@@ -115,14 +115,16 @@ class: center, middle
 
 ---
 
-# Restore a thin device on a live pool
+## Restore a thin device on a live pool
 
     thin_archive --restore --backend <backend> --stream-id <uuid>
                  --thin-pool <pool-dev>
 
 - Create a new thin (noting the thin-id)
 - Query backend to find out stream size
+- activate new thin
 - Force a complete provision
+- deactivate new thin
 - Take metadata snap
 - Restore from backend
 - Drop metadata snap
@@ -130,7 +132,7 @@ class: center, middle
 
 ---
 
-# Incremental backup, live pool
+## Incremental backup, live pool
 
     thin_archive --archive --backend <backend> --stream-id <uuid>
                  --thin-pool <pool-dev>
@@ -145,7 +147,7 @@ class: center, middle
 
 ---
 
-# Restore from incremental backup, live pool
+## Restore from incremental backup, live pool
 
     thin_archive --restore --backend <backend> --stream-id <uuid>
                  --thin-pool <pool-dev>
@@ -153,7 +155,9 @@ class: center, middle
 
 - Take snap of parent (remember thin-id)
 - Query backend for delta locations
+- activate new snap
 - Force breaking of sharing in these locations
+- deactivate new snap
 - Take metadata snap
 - Restore deltas
 - Drop metadata snap
@@ -164,11 +168,11 @@ class: center, middle
 ---
 
 class: center, middle
-# Dedup
+# Data Deduplication
 
 ---
 
-# Naive architecture
+## Naive architecture
 
     Data stream =>
     break into chunks =>
@@ -181,9 +185,9 @@ Problems with scaling.
 
 ---
 
-# Chunking
+## Chunking
 
-Investigated with thin_show_duplicates tool.
+Investigated with [thin_show_duplicates](https://github.com/jthornber/thin-provisioning-tools/blob/2015-08-19-thin-show-duplicates/thin-provisioning/thin_show_duplicates.cc) tool.
 
 - Fixed sized chunks work very poorly in general.
 - Performance of fixed sized chunks v. sensitive to fs used
@@ -192,7 +196,7 @@ Investigated with thin_show_duplicates tool.
 
 ---
 
-# Fingerprint
+## Fingerprint
 
 - We can't afford to compare data, so the fingerprints have to be large
 enough to reduce the risk of false positives to effectively zero (way
@@ -206,15 +210,15 @@ We want to store a lot more than 4T.
 
 ---
 
-# Lookup fingerprint (problems)
+## Lookup fingerprint (problems)
 
 - We can't store all fingerprints in memory.
-- We can't store them in a btree (no locality, fingerprints are random)
-  This is why dm-dedup is flawed.
+- We can't store them in a btree (no locality, fingerprints are random).
+  This is one reason why dm-dedup is flawed.
 
 ---
 
-# Lookup fingerprint (solutions)
+## Lookup fingerprint (solutions)
 
 - Optimise for the common case.  ie. the fingerprint being looked up
   has _not_ been seen before.  (eg, use a bloom filter, maintaining the
@@ -233,7 +237,7 @@ We want to store a lot more than 4T.
 
 ---
 
-# Store chunks
+## Store chunks
 
 Data and fingerprints are packed into 'segments' of around 4-8M.
 These semgents are stream specific; each client to the backend will
@@ -244,20 +248,22 @@ have it's own stream of segments open.
     +--------------------------------+
 
 - See if compressed data will fit, if not close segment and allocate a new one.
-- Append fingerprint to finger print area.
-- Append data to data area.
+- Append fingerprint
+- Append data
 
 ---
 
-# Store index
+## Store index
 
 - Append to journal for the stream.
 
 ---
 
-# Open problems
+## Open issues
 
 - Deleting streams from the backend.
+- Switching to more recent version of gcc means we may not be able to
+  backport to older distros (RHEL 6.x?)
 
 ---
 
